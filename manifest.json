@@ -1,0 +1,9 @@
+{
+  "id": "findnote",
+  "name": "Findnote",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "Search notes through a local Findnote server and open the matching result.",
+  "author": "Anthony Myers",
+  "isDesktopOnly": false
+}
