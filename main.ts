@@ -1,4 +1,11 @@
-import { Notice, Plugin, requestUrl, SuggestModal } from "obsidian";
+import { 
+    MarkdownView,
+    Notice,
+    Plugin,
+    requestUrl,
+    SuggestModal,
+    TFile
+} from "obsidian";
 
 const FINDNOTE_SERVER = "http://127.0.0.1:8000";
 
@@ -75,10 +82,34 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
         });
     }
 
-    onChooseSuggestion(result: SearchResult) {
-        new Notice(
-            `${result.title}\n${result.collection}/${result.file}:${result.line}`
-        );
+    async onChooseSuggestion(result: SearchResult) {
+        const file = this.app.vault.getAbstractFileByPath(result.file);
+
+        if (!(file instanceof TFile)) {
+            new Notice(`Note not found: ${result.file}`);
+            return;
+        }
+
+        await this.app.workspace.getLeaf(false).openFile(file);
+
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+        if (view) {
+            const line = Math.max(0, result.line - 1);
+
+            view.editor.setCursor({
+                line,
+                ch: 0,
+            });
+
+            view.editor.scrollIntoView(
+                {
+                    from: { line, ch: 0 },
+                    to: { line, ch: 0 },
+                },
+                true
+            );
+        }
     }
 
     private parseQuery(query: string): {
