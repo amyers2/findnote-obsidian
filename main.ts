@@ -46,15 +46,8 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
 
         return new Promise((resolve) => {
             this.searchTimer = setTimeout(async () => {
-                try {
-                    const results = await this.plugin.searchNotes(query);
-                    resolve(results);
-                    
-                } catch (error) {
-                    console.error("Findnote search failed:", error);
-                    new Notice("Findnote server connection failed");
-                    resolve([]);
-                }
+                const results = await this.plugin.searchNotes(query);
+                resolve(results);
             }, 250);
         });
     }
@@ -241,31 +234,38 @@ export default class FindnotePlugin extends Plugin {
     }
 
     async searchNotes(query: string): Promise<SearchResult[]> {
-        const search = this.parseQuery(query);
-        const params = new URLSearchParams();
+        try {
+            const search = this.parseQuery(query);
+            const params = new URLSearchParams();
 
-        for (const word of search.all) {
-            params.append("all", word);
+            for (const word of search.all) {
+                params.append("all", word);
+            }
+
+            for (const word of search.any) {
+                params.append("any", word);
+            }
+
+            for (const word of search.not) {
+                params.append("not", word);
+            }
+
+            if (search.regex) {
+                params.append("re", search.regex);
+            }
+
+            const response = await requestUrl({
+                url: `${FINDNOTE_SERVER}/search?${params.toString()}`,
+                method: "GET",
+            });
+
+            return response.json;
+
+        } catch (error) {
+            console.error("Findnote search failed:", error);
+            new Notice("Findnote server connection failed");
+            return [];
         }
-
-        for (const word of search.any) {
-            params.append("any", word);
-        }
-
-        for (const word of search.not) {
-            params.append("not", word);
-        }
-
-        if (search.regex) {
-            params.append("re", search.regex);
-        }
-
-        const response = await requestUrl({
-            url: `${FINDNOTE_SERVER}/search?${params.toString()}`,
-            method: "GET",
-        });
-
-        return response.json;
     }
 
     async openResult(result: SearchResult): Promise<void> {
