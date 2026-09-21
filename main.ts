@@ -1,10 +1,13 @@
 import { 
+    App,
+    ItemView,
     MarkdownView,
     Notice,
     Plugin,
     requestUrl,
     SuggestModal,
-    TFile
+    TFile,
+    WorkspaceLeaf,
 } from "obsidian";
 
 const FINDNOTE_SERVER = "http://127.0.0.1:8000";
@@ -19,6 +22,13 @@ interface SearchResult {
 
 class FindnoteSearchModal extends SuggestModal<SearchResult> {
     private searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+    constructor(
+        app: App,
+        private plugin: FindnotePlugin,
+    ) {
+        super(app);
+    }
 
     onOpen() {
         super.onOpen();
@@ -37,7 +47,7 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
         return new Promise((resolve) => {
             this.searchTimer = setTimeout(async () => {
                 try {
-                    const search = this.parseQuery(query);
+                    const search = this.plugin.parseQuery(query);
                     const params = new URLSearchParams();
 
                     for (const word of search.all) {
@@ -74,7 +84,7 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
 
     renderSuggestion(result: SearchResult, el: HTMLElement) {
         el.createEl("div", {
-            text: this.truncateTitle(result.title),
+            text: this.plugin.truncateTitle(result.title),
         });
 
         el.createEl("small", {
@@ -111,8 +121,137 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
             );
         }
     }
+}
 
-    private parseQuery(query: string): {
+const VIEW_TYPE_FINDNOTE = "findnote-search";
+
+class FindnoteSearchView extends ItemView {
+    constructor(
+        leaf: WorkspaceLeaf,
+        private plugin: FindnotePlugin,
+    ) {
+        super(leaf);
+    }
+
+    getViewType(): string {
+        return VIEW_TYPE_FINDNOTE;
+    }
+
+    getDisplayText(): string {
+        return "Findnote";
+    }
+
+    async onOpen(): Promise<void> {
+        this.contentEl.empty();
+
+        this.contentEl.createEl("h2", {
+            text: "Findnote",
+        });
+
+        const input = this.contentEl.createEl("input", {
+            type: "text",
+            placeholder: "Search notes...",
+        });
+
+        input.style.width = "100%";
+
+        const resultsEl = this.contentEl.createDiv();
+
+        input.addEventListener("input", async () => {
+            const results = await this.search(input.value);
+
+            resultsEl.empty();
+
+            for (const result of results) {
+                resultsEl.createDiv({
+                    text: this.plugin.truncateTitle(result.title),
+                });
+            }
+        });
+    }
+
+    private async search(query: string): Promise<SearchResult[]> {
+        const search = this.plugin.parseQuery(query);
+        const params = new URLSearchParams();
+
+        for (const word of search.all) {
+            params.append("all", word);
+        }
+
+        for (const word of search.any) {
+            params.append("any", word);
+        }
+
+        for (const word of search.not) {
+            params.append("not", word);
+        }
+
+        if (search.regex) {
+            params.append("re", search.regex);
+        }
+
+        const response = await requestUrl({
+            url: `${FINDNOTE_SERVER}/search?${params.toString()}`,
+            method: "GET",
+        });
+
+        return response.json;
+    }
+
+    async onClose(): Promise<void> {
+        this.contentEl.empty();
+    }
+}
+
+export default class FindnotePlugin extends Plugin {
+    async onload() {
+        console.log("Findnote plugin loaded");
+
+        this.registerView(
+            VIEW_TYPE_FINDNOTE,
+            (leaf) => new FindnoteSearchView(leaf, this)
+        );
+
+        this.addCommand({
+            id: "search",
+            name: "Search notes",
+            callback: () => {
+                new FindnoteSearchModal(this.app, this).open();
+            },
+        });
+
+        this.addCommand({
+            id: "open-search",
+            name: "Open search sidebar",
+            callback: () => {
+                void this.activateView();
+            },
+        });
+    }
+
+    async activateView(): Promise<void> {
+        const { workspace } = this.app;
+
+        let leaf: WorkspaceLeaf | null =
+            workspace.getLeavesOfType(VIEW_TYPE_FINDNOTE)[0] ?? null;
+
+        if (!leaf) {
+            leaf = workspace.getRightLeaf(false);
+
+            if (!leaf) {
+                return;
+            }
+
+            await leaf.setViewState({
+                type: VIEW_TYPE_FINDNOTE,
+                active: true,
+            });
+        }
+
+        workspace.revealLeaf(leaf);
+    }
+
+    parseQuery(query: string): {
         all: string[];
         any: string[];
         not: string[];
@@ -160,7 +299,7 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
         return result;
     }
 
-    private truncateTitle(title: string, maxWords = 30): string {
+    truncateTitle(title: string, maxWords = 30): string {
         const words = title.trim().split(/\s+/);
 
         if (words.length <= maxWords) {
@@ -168,20 +307,6 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
         }
 
         return words.slice(0, maxWords).join(" ") + "…";
-    }
-}
-
-export default class FindnotePlugin extends Plugin {
-    async onload() {
-        console.log("Findnote plugin loaded");
-
-        this.addCommand({
-            id: "search",
-            name: "Search notes",
-            callback: () => {
-                new FindnoteSearchModal(this.app).open();
-            },
-        });
     }
 
     onunload() {
