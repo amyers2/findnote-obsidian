@@ -93,33 +93,7 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
     }
 
     async onChooseSuggestion(result: SearchResult) {
-        const file = this.app.vault.getAbstractFileByPath(result.file);
-
-        if (!(file instanceof TFile)) {
-            new Notice(`Note not found: ${result.file}`);
-            return;
-        }
-
-        await this.app.workspace.getLeaf(false).openFile(file);
-
-        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-
-        if (view) {
-            const line = Math.max(0, result.line - 1);
-
-            view.editor.setCursor({
-                line,
-                ch: 0,
-            });
-
-            view.editor.scrollIntoView(
-                {
-                    from: { line, ch: 0 },
-                    to: { line, ch: 0 },
-                },
-                true
-            );
-        }
+        await this.plugin.openResult(result);
     }
 }
 
@@ -163,8 +137,12 @@ class FindnoteSearchView extends ItemView {
             resultsEl.empty();
 
             for (const result of results) {
-                resultsEl.createDiv({
+                const resultEl = resultsEl.createDiv({
                     text: this.plugin.truncateTitle(result.title),
+                });
+
+                resultEl.addEventListener("click", () => {
+                    void this.plugin.openResult(result);
                 });
             }
         });
@@ -297,6 +275,36 @@ export default class FindnotePlugin extends Plugin {
         }
 
         return result;
+    }
+
+    async openResult(result: SearchResult): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(result.file);
+
+        if (!(file instanceof TFile)) {
+            new Notice(`Note not found: ${result.file}`);
+            return;
+        }
+
+        await this.app.workspace.getLeaf(false).openFile(file);
+
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+        if (view) {
+            const line = Math.max(0, result.line - 1);
+
+            view.editor.setCursor({
+                line,
+                ch: 0,
+            });
+
+            view.editor.scrollIntoView(
+                {
+                    from: { line, ch: 0 },
+                    to: { line, ch: 0 },
+                },
+                true
+            );
+        }
     }
 
     truncateTitle(title: string, maxWords = 30): string {
