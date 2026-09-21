@@ -47,32 +47,9 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
         return new Promise((resolve) => {
             this.searchTimer = setTimeout(async () => {
                 try {
-                    const search = this.plugin.parseQuery(query);
-                    const params = new URLSearchParams();
-
-                    for (const word of search.all) {
-                        params.append("all", word);
-                    }
-
-                    for (const word of search.any) {
-                        params.append("any", word);
-                    }
-
-                    for (const word of search.not) {
-                        params.append("not", word);
-                    }
-
-                    if (search.regex) {
-                        params.append("re", search.regex);
-                    }
-
-                    const response = await requestUrl({
-                        url: `${FINDNOTE_SERVER}/search?${params.toString()}`,
-                        method: "GET",
-                    });
-
-                    resolve(response.json as SearchResult[]);
-
+                    const results = await this.plugin.searchNotes(query);
+                    resolve(results);
+                    
                 } catch (error) {
                     console.error("Findnote search failed:", error);
                     new Notice("Findnote server connection failed");
@@ -100,6 +77,8 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
 const VIEW_TYPE_FINDNOTE = "findnote-search";
 
 class FindnoteSearchView extends ItemView {
+    private searchTimer: ReturnType<typeof setTimeout> | null = null;
+
     constructor(
         leaf: WorkspaceLeaf,
         private plugin: FindnotePlugin,
@@ -131,53 +110,37 @@ class FindnoteSearchView extends ItemView {
 
         const resultsEl = this.contentEl.createDiv();
 
-        input.addEventListener("input", async () => {
-            const results = await this.search(input.value);
-
-            resultsEl.empty();
-
-            for (const result of results) {
-                const resultEl = resultsEl.createDiv({
-                    text: this.plugin.truncateTitle(result.title),
-                });
-
-                resultEl.addEventListener("click", () => {
-                    void this.plugin.openResult(result);
-                });
+        input.addEventListener("input", () => {
+            if (this.searchTimer !== null) {
+                clearTimeout(this.searchTimer);
             }
+
+            this.searchTimer = setTimeout(async () => {
+                const results = await this.plugin.searchNotes(input.value);
+
+                resultsEl.empty();
+
+                for (const result of results) {
+                    const resultEl = resultsEl.createDiv({
+                        cls: "findnote-result",
+                    });
+
+                    resultEl.createDiv({
+                        text: this.plugin.truncateTitle(result.title),
+                        cls: "findnote-result-title",
+                    });
+
+                    resultEl.createEl("small", {
+                        text: `${result.collection}/${result.file}`,
+                        cls: "findnote-result-path",
+                    });
+
+                    resultEl.addEventListener("click", () => {
+                        void this.plugin.openResult(result);
+                    });
+                }
+            }, 250);
         });
-    }
-
-    private async search(query: string): Promise<SearchResult[]> {
-        const search = this.plugin.parseQuery(query);
-        const params = new URLSearchParams();
-
-        for (const word of search.all) {
-            params.append("all", word);
-        }
-
-        for (const word of search.any) {
-            params.append("any", word);
-        }
-
-        for (const word of search.not) {
-            params.append("not", word);
-        }
-
-        if (search.regex) {
-            params.append("re", search.regex);
-        }
-
-        const response = await requestUrl({
-            url: `${FINDNOTE_SERVER}/search?${params.toString()}`,
-            method: "GET",
-        });
-
-        return response.json;
-    }
-
-    async onClose(): Promise<void> {
-        this.contentEl.empty();
     }
 }
 
@@ -275,6 +238,34 @@ export default class FindnotePlugin extends Plugin {
         }
 
         return result;
+    }
+
+    async searchNotes(query: string): Promise<SearchResult[]> {
+        const search = this.parseQuery(query);
+        const params = new URLSearchParams();
+
+        for (const word of search.all) {
+            params.append("all", word);
+        }
+
+        for (const word of search.any) {
+            params.append("any", word);
+        }
+
+        for (const word of search.not) {
+            params.append("not", word);
+        }
+
+        if (search.regex) {
+            params.append("re", search.regex);
+        }
+
+        const response = await requestUrl({
+            url: `${FINDNOTE_SERVER}/search?${params.toString()}`,
+            method: "GET",
+        });
+
+        return response.json;
     }
 
     async openResult(result: SearchResult): Promise<void> {

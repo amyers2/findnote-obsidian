@@ -1,0 +1,21 @@
+.findnote-result {
+    padding: 6px 8px;
+    margin-top: 2px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.findnote-result:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.findnote-result-title {
+    font-size: 0.9em;
+}
+
+.findnote-result-path {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 0.75em;
+}
