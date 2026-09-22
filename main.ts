@@ -71,6 +71,7 @@ const VIEW_TYPE_FINDNOTE = "findnote-search";
 
 class FindnoteSearchView extends ItemView {
     private searchTimer: ReturnType<typeof setTimeout> | null = null;
+    private searchRequestId = 0;
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -85,6 +86,33 @@ class FindnoteSearchView extends ItemView {
 
     getDisplayText(): string {
         return "Findnote";
+    }
+
+    private showEmptyState(resultsEl: HTMLElement): void {
+        resultsEl.empty();
+
+        resultsEl.createDiv({
+            text: "Search your notes",
+            cls: "findnote-empty",
+        });
+    }
+
+    private showSearchingState(resultsEl: HTMLElement): void {
+        resultsEl.empty();
+
+        resultsEl.createDiv({
+            text: "Searching…",
+            cls: "findnote-empty",
+        });
+    }
+
+    private showNoResultsState(resultsEl: HTMLElement): void {
+        resultsEl.empty();
+
+        resultsEl.createDiv({
+            text: "No notes found",
+            cls: "findnote-empty",
+        });
     }
 
     async onOpen(): Promise<void> {
@@ -103,37 +131,82 @@ class FindnoteSearchView extends ItemView {
 
         const resultsEl = this.contentEl.createDiv();
 
+        this.showEmptyState(resultsEl);
+
         input.addEventListener("input", () => {
             if (this.searchTimer !== null) {
                 clearTimeout(this.searchTimer);
             }
 
+            if (!input.value.trim()) {
+                this.searchRequestId++;
+                this.showEmptyState(resultsEl);
+                return;
+            }
+
+            this.showSearchingState(resultsEl);
+
             this.searchTimer = setTimeout(async () => {
-                const results = await this.plugin.searchNotes(input.value);
+                this.searchTimer = null;
 
-                resultsEl.empty();
+                const requestId = ++this.searchRequestId;
 
-                for (const result of results) {
-                    const resultEl = resultsEl.createDiv({
-                        cls: "findnote-result",
-                    });
+                try {
+                    const results = await this.plugin.searchNotes(input.value);
 
-                    resultEl.createDiv({
-                        text: this.plugin.truncateTitle(result.title),
-                        cls: "findnote-result-title",
-                    });
+                    if (requestId !== this.searchRequestId) {
+                        return;
+                    }
 
-                    resultEl.createEl("small", {
-                        text: `${result.collection}/${result.file}`,
-                        cls: "findnote-result-path",
-                    });
+                    if (results.length === 0) {
+                        this.showNoResultsState(resultsEl);
+                        return;
+                    }
 
-                    resultEl.addEventListener("click", () => {
-                        void this.plugin.openResult(result);
+                    resultsEl.empty();
+
+                    for (const result of results) {
+                        const resultEl = resultsEl.createDiv({
+                            cls: "findnote-result",
+                        });
+
+                        resultEl.createDiv({
+                            text: this.plugin.truncateTitle(result.title),
+                            cls: "findnote-result-title",
+                        });
+
+                        resultEl.createEl("small", {
+                            text: `${result.collection}/${result.file}`,
+                            cls: "findnote-result-path",
+                        });
+
+                        resultEl.addEventListener("click", () => {
+                            void this.plugin.openResult(result);
+                        });
+                    }
+                } catch (error) {
+                    if (requestId !== this.searchRequestId) {
+                        return;
+                    }
+
+                    resultsEl.empty();
+
+                    resultsEl.createDiv({
+                        text: "Search failed",
+                        cls: "findnote-empty",
                     });
                 }
             }, 250);
         });
+    }
+
+    onClose(): Promise<void> {
+        if (this.searchTimer !== null) {
+            clearTimeout(this.searchTimer);
+            this.searchTimer = null;
+        }
+
+        return Promise.resolve();
     }
 }
 
@@ -264,7 +337,7 @@ export default class FindnotePlugin extends Plugin {
         } catch (error) {
             console.error("Findnote search failed:", error);
             new Notice("Findnote server connection failed");
-            return [];
+            throw error;
         }
     }
 
