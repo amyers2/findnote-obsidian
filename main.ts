@@ -12,7 +12,8 @@ import {
 
 const FINDNOTE_SERVER = "http://127.0.0.1:8000";
 
-interface SearchResult {
+interface SearchResult
+{
     collection: string;
     file: string;
     index: number;
@@ -20,31 +21,37 @@ interface SearchResult {
     title: string;
 }
 
-class FindnoteSearchModal extends SuggestModal<SearchResult> {
+class FindnoteSearchModal extends SuggestModal<SearchResult>
+{
     private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor(
         app: App,
-        private plugin: FindnotePlugin,
-    ) {
+        private plugin: FindnotePlugin)
+    {
         super(app);
     }
 
-    onOpen() {
+    onOpen()
+    {
         super.onOpen();
         this.setPlaceholder("Search your notes...");
     }
 
-    async getSuggestions(query: string): Promise<SearchResult[]> {
-        if (!query.trim()) {
+    async getSuggestions(query: string): Promise<SearchResult[]>
+    {
+        if (!query.trim())
+        {
             return [];
         }
 
-        if (this.searchTimer !== null) {
+        if (this.searchTimer !== null)
+        {
             clearTimeout(this.searchTimer);
         }
 
-        return new Promise((resolve) => {
+        return new Promise((resolve) =>
+        {
             this.searchTimer = setTimeout(async () => {
                 const results = await this.plugin.searchNotes(query);
                 resolve(results);
@@ -52,77 +59,93 @@ class FindnoteSearchModal extends SuggestModal<SearchResult> {
         });
     }
 
-    renderSuggestion(result: SearchResult, el: HTMLElement) {
-        el.createEl("div", {
+    renderSuggestion(result: SearchResult, el: HTMLElement)
+    {
+        el.createEl("div",
+        {
             text: this.plugin.truncateTitle(result.title),
         });
 
-        el.createEl("small", {
+        el.createEl("small",
+        {
             text: `${result.collection}/${result.file}`,
         });
     }
 
-    async onChooseSuggestion(result: SearchResult) {
+    async onChooseSuggestion(result: SearchResult)
+    {
         await this.plugin.openResult(result);
     }
 }
 
 const VIEW_TYPE_FINDNOTE = "findnote-search";
 
-class FindnoteSearchView extends ItemView {
+class FindnoteSearchView extends ItemView
+{
     private searchTimer: ReturnType<typeof setTimeout> | null = null;
     private searchRequestId = 0;
 
     constructor(
         leaf: WorkspaceLeaf,
-        private plugin: FindnotePlugin,
-    ) {
+        private plugin: FindnotePlugin)
+    {
         super(leaf);
     }
 
-    getViewType(): string {
+    getViewType(): string
+    {
         return VIEW_TYPE_FINDNOTE;
     }
 
-    getDisplayText(): string {
+    getDisplayText(): string
+    {
         return "Findnote";
     }
 
-    private showEmptyState(resultsEl: HTMLElement): void {
+    private showEmptyState(resultsEl: HTMLElement): void
+    {
         resultsEl.empty();
 
-        resultsEl.createDiv({
+        resultsEl.createDiv(
+        {
             text: "Search your notes",
             cls: "findnote-empty",
         });
     }
 
-    private showSearchingState(resultsEl: HTMLElement): void {
+    private showSearchingState(resultsEl: HTMLElement): void
+    {
         resultsEl.empty();
 
-        resultsEl.createDiv({
+        resultsEl.createDiv(
+        {
             text: "Searching…",
             cls: "findnote-empty",
         });
     }
 
-    private showNoResultsState(resultsEl: HTMLElement): void {
+    private showNoResultsState(resultsEl: HTMLElement): void
+    {
         resultsEl.empty();
 
-        resultsEl.createDiv({
+        resultsEl.createDiv(
+        {
             text: "No notes found",
             cls: "findnote-empty",
         });
     }
 
-    async onOpen(): Promise<void> {
+    async onOpen(): Promise<void>
+    {
         this.contentEl.empty();
 
-        this.contentEl.createEl("h2", {
+        this.contentEl.createEl("h2",
+        {
             text: "Findnote",
         });
 
-        const input = this.contentEl.createEl("input", {
+        const input = this.contentEl.createEl("input",
+        {
             type: "text",
             placeholder: "Search notes...",
         });
@@ -133,12 +156,15 @@ class FindnoteSearchView extends ItemView {
 
         this.showEmptyState(resultsEl);
 
-        input.addEventListener("input", () => {
-            if (this.searchTimer !== null) {
+        input.addEventListener("input", () =>
+        {
+            if (this.searchTimer !== null)
+            {
                 clearTimeout(this.searchTimer);
             }
 
-            if (!input.value.trim()) {
+            if (!input.value.trim())
+            {
                 this.searchRequestId++;
                 this.showEmptyState(resultsEl);
                 return;
@@ -146,52 +172,65 @@ class FindnoteSearchView extends ItemView {
 
             this.showSearchingState(resultsEl);
 
-            this.searchTimer = setTimeout(async () => {
+            this.searchTimer = setTimeout(async () =>
+            {
                 this.searchTimer = null;
 
                 const requestId = ++this.searchRequestId;
 
-                try {
+                try
+                {
                     const results = await this.plugin.searchNotes(input.value);
 
-                    if (requestId !== this.searchRequestId) {
+                    if (requestId !== this.searchRequestId)
+                    {
                         return;
                     }
 
-                    if (results.length === 0) {
+                    if (results.length === 0)
+                    {
                         this.showNoResultsState(resultsEl);
                         return;
                     }
 
                     resultsEl.empty();
 
-                    for (const result of results) {
-                        const resultEl = resultsEl.createDiv({
+                    for (const result of results)
+                    {
+                        const resultEl = resultsEl.createDiv(
+                        {
                             cls: "findnote-result",
                         });
 
-                        resultEl.createDiv({
+                        resultEl.createDiv(
+                        {
                             text: this.plugin.truncateTitle(result.title),
                             cls: "findnote-result-title",
                         });
 
-                        resultEl.createEl("small", {
+                        resultEl.createEl("small",
+                        {
                             text: `${result.collection}/${result.file}`,
                             cls: "findnote-result-path",
                         });
 
-                        resultEl.addEventListener("click", () => {
+                        resultEl.addEventListener("click", () =>
+                        {
                             void this.plugin.openResult(result);
                         });
                     }
-                } catch (error) {
-                    if (requestId !== this.searchRequestId) {
+                }
+                catch (error)
+                {
+                    if (requestId !== this.searchRequestId)
+                    {
                         return;
                     }
 
                     resultsEl.empty();
 
-                    resultsEl.createDiv({
+                    resultsEl.createDiv(
+                    {
                         text: "Search failed",
                         cls: "findnote-empty",
                     });
@@ -200,8 +239,10 @@ class FindnoteSearchView extends ItemView {
         });
     }
 
-    onClose(): Promise<void> {
-        if (this.searchTimer !== null) {
+    onClose(): Promise<void>
+    {
+        if (this.searchTimer !== null)
+        {
             clearTimeout(this.searchTimer);
             this.searchTimer = null;
         }
@@ -210,8 +251,10 @@ class FindnoteSearchView extends ItemView {
     }
 }
 
-export default class FindnotePlugin extends Plugin {
-    async onload() {
+export default class FindnotePlugin extends Plugin
+{
+    async onload()
+    {
         console.log("Findnote plugin loaded");
 
         this.registerView(
@@ -219,37 +262,45 @@ export default class FindnotePlugin extends Plugin {
             (leaf) => new FindnoteSearchView(leaf, this)
         );
 
-        this.addCommand({
+        this.addCommand(
+        {
             id: "search",
             name: "Search notes",
-            callback: () => {
+            callback: () =>
+            {
                 new FindnoteSearchModal(this.app, this).open();
             },
         });
 
-        this.addCommand({
+        this.addCommand(
+        {
             id: "open-search",
             name: "Open search sidebar",
-            callback: () => {
+            callback: () =>
+            {
                 void this.activateView();
             },
         });
     }
 
-    async activateView(): Promise<void> {
+    async activateView(): Promise<void>
+    {
         const { workspace } = this.app;
 
         let leaf: WorkspaceLeaf | null =
             workspace.getLeavesOfType(VIEW_TYPE_FINDNOTE)[0] ?? null;
 
-        if (!leaf) {
+        if (!leaf)
+        {
             leaf = workspace.getRightLeaf(false);
 
-            if (!leaf) {
+            if (!leaf)
+            {
                 return;
             }
 
-            await leaf.setViewState({
+            await leaf.setViewState(
+            {
                 type: VIEW_TYPE_FINDNOTE,
                 active: true,
             });
@@ -258,13 +309,16 @@ export default class FindnotePlugin extends Plugin {
         workspace.revealLeaf(leaf);
     }
 
-    parseQuery(query: string): {
+    parseQuery(query: string):
+    {
         all: string[];
         any: string[];
         not: string[];
         regex: string | null;
-    } {
-        const result = {
+    }
+    {
+        const result =
+        {
             all: [] as string[],
             any: [] as string[],
             not: [] as string[],
@@ -275,12 +329,14 @@ export default class FindnotePlugin extends Plugin {
             /\s+(?=(?:all|any|not|re):)/i
         );
 
-        for (const section of sections) {
+        for (const section of sections)
+        {
             const match = section.match(
                 /^(all|any|not|re):\s*(.*)$/i
             );
 
-            if (!match) {
+            if (!match)
+            {
                 result.all.push(...section.split(/\s+/).filter(Boolean));
                 continue;
             }
@@ -288,17 +344,25 @@ export default class FindnotePlugin extends Plugin {
             const mode = match[1].toLowerCase();
             const value = match[2].trim();
 
-            if (!value) {
+            if (!value)
+            {
                 continue;
             }
 
-            if (mode === "re") {
+            if (mode === "re")
+            {
                 result.regex = value;
-            } else if (mode === "all") {
+            }
+            else if (mode === "all")
+            {
                 result.all.push(...value.split(/\s+/).filter(Boolean));
-            } else if (mode === "any") {
+            }
+            else if (mode === "any")
+            {
                 result.any.push(...value.split(/\s+/).filter(Boolean));
-            } else if (mode === "not") {
+            }
+            else if (mode === "not")
+            {
                 result.not.push(...value.split(/\s+/).filter(Boolean));
             }
         }
@@ -306,45 +370,56 @@ export default class FindnotePlugin extends Plugin {
         return result;
     }
 
-    async searchNotes(query: string): Promise<SearchResult[]> {
-        try {
+    async searchNotes(query: string): Promise<SearchResult[]>
+    {
+        try
+        {
             const search = this.parseQuery(query);
             const params = new URLSearchParams();
 
-            for (const word of search.all) {
+            for (const word of search.all)
+            {
                 params.append("all", word);
             }
 
-            for (const word of search.any) {
+            for (const word of search.any)
+            {
                 params.append("any", word);
             }
 
-            for (const word of search.not) {
+            for (const word of search.not)
+            {
                 params.append("not", word);
             }
 
-            if (search.regex) {
+            if (search.regex)
+            {
                 params.append("re", search.regex);
             }
 
-            const response = await requestUrl({
+            const response = await requestUrl(
+            {
                 url: `${FINDNOTE_SERVER}/search?${params.toString()}`,
                 method: "GET",
             });
 
             return response.json;
 
-        } catch (error) {
+        }
+        catch (error)
+        {
             console.error("Findnote search failed:", error);
             new Notice("Findnote server connection failed");
             throw error;
         }
     }
 
-    async openResult(result: SearchResult): Promise<void> {
+    async openResult(result: SearchResult): Promise<void>
+    {
         const file = this.app.vault.getAbstractFileByPath(result.file);
 
-        if (!(file instanceof TFile)) {
+        if (!(file instanceof TFile))
+        {
             new Notice(`Note not found: ${result.file}`);
             return;
         }
@@ -353,10 +428,12 @@ export default class FindnotePlugin extends Plugin {
 
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
-        if (view) {
+        if (view)
+        {
             const line = Math.max(0, result.line - 1);
 
-            view.editor.setCursor({
+            view.editor.setCursor(
+            {
                 line,
                 ch: 0,
             });
@@ -371,17 +448,20 @@ export default class FindnotePlugin extends Plugin {
         }
     }
 
-    truncateTitle(title: string, maxWords = 30): string {
+    truncateTitle(title: string, maxWords = 30): string
+    {
         const words = title.trim().split(/\s+/);
 
-        if (words.length <= maxWords) {
+        if (words.length <= maxWords)
+        {
             return title;
         }
 
         return words.slice(0, maxWords).join(" ") + "…";
     }
 
-    onunload() {
+    onunload()
+    {
         console.log("Findnote plugin unloaded");
     }
 }
