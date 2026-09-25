@@ -102,37 +102,46 @@ class FindnoteSearchView extends ItemView
         return "Findnote";
     }
 
-    private showEmptyState(resultsEl: HTMLElement): void
+    private showEmptyState(statusEl: HTMLElement): void
     {
-        resultsEl.empty();
+        statusEl.empty();
 
-        resultsEl.createDiv(
+        const messageEl = statusEl.createDiv(
         {
             text: "Search your notes",
             cls: "findnote-empty",
         });
+
+        messageEl.style.marginTop = "12px";
+        messageEl.style.fontSize = "0.9em";
     }
 
-    private showSearchingState(resultsEl: HTMLElement): void
+    private showSearchingState(statusEl: HTMLElement): void
     {
-        resultsEl.empty();
+        statusEl.empty();
 
-        resultsEl.createDiv(
+        const messageEl = statusEl.createDiv(
         {
             text: "Searching…",
             cls: "findnote-empty",
         });
+
+        messageEl.style.marginTop = "12px";
+        messageEl.style.fontSize = "0.9em";
     }
 
-    private showNoResultsState(resultsEl: HTMLElement): void
+    private showNoResultsState(statusEl: HTMLElement): void
     {
-        resultsEl.empty();
+        statusEl.empty();
 
-        resultsEl.createDiv(
+        const messageEl = statusEl.createDiv(
         {
             text: "No notes found",
             cls: "findnote-empty",
         });
+
+        messageEl.style.marginTop = "12px";
+        messageEl.style.fontSize = "0.9em";
     }
 
     async onOpen(): Promise<void>
@@ -144,20 +153,52 @@ class FindnoteSearchView extends ItemView
             text: "Findnote",
         });
 
-        const input = this.contentEl.createEl("input",
+        const searchContainer = this.contentEl.createDiv();
+
+        searchContainer.style.position = "relative";
+
+        const input = searchContainer.createEl("input",
         {
             type: "text",
             placeholder: "Search notes...",
         });
 
         input.style.width = "100%";
+        input.style.paddingRight = "30px";
+
+        const clearButton = searchContainer.createEl("button",
+        {
+            text: "×",
+        });
+
+        clearButton.style.position = "absolute";
+        clearButton.style.right = "4px";
+        clearButton.style.top = "50%";
+        clearButton.style.transform = "translateY(-50%)";
+        clearButton.style.display = "none";
+        clearButton.style.height = "100%";
+        clearButton.style.margin = "0";
+        clearButton.style.minHeight = "0";
+        clearButton.style.minWidth = "0";
+        clearButton.style.padding = "0 6px";
+        clearButton.style.border = "none";
+        clearButton.style.background = "transparent";
+        clearButton.style.boxShadow = "none";
+        clearButton.style.fontSize = "18px";
+        clearButton.style.cursor = "pointer";
+
+        const statusEl = this.contentEl.createDiv();
 
         const resultsEl = this.contentEl.createDiv();
 
-        this.showEmptyState(resultsEl);
+        resultsEl.style.marginTop = "12px";
+
+        this.showEmptyState(statusEl);
 
         input.addEventListener("input", () =>
         {
+            clearButton.style.display = input.value ? "block" : "none";
+
             if (this.searchTimer !== null)
             {
                 clearTimeout(this.searchTimer);
@@ -166,11 +207,13 @@ class FindnoteSearchView extends ItemView
             if (!input.value.trim())
             {
                 this.searchRequestId++;
-                this.showEmptyState(resultsEl);
+                resultsEl.empty();
+                this.showEmptyState(statusEl);
                 return;
             }
 
-            this.showSearchingState(resultsEl);
+            this.showSearchingState(statusEl);
+            resultsEl.empty();
 
             this.searchTimer = setTimeout(async () =>
             {
@@ -189,10 +232,11 @@ class FindnoteSearchView extends ItemView
 
                     if (results.length === 0)
                     {
-                        this.showNoResultsState(resultsEl);
+                        this.showNoResultsState(statusEl);
                         return;
                     }
 
+                    statusEl.empty();
                     resultsEl.empty();
 
                     for (const result of results)
@@ -236,6 +280,13 @@ class FindnoteSearchView extends ItemView
                     });
                 }
             }, 250);
+        });
+
+        clearButton.addEventListener("click", () =>
+        {
+            input.value = "";
+            input.dispatchEvent(new Event("input"));
+            input.focus();
         });
     }
 
