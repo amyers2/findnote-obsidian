@@ -4,13 +4,13 @@ import {
     MarkdownView,
     Notice,
     Plugin,
+    PluginSettingTab,
     requestUrl,
+    Setting,
     SuggestModal,
     TFile,
     WorkspaceLeaf,
 } from "obsidian";
-
-const FINDNOTE_SERVER = "http://127.0.0.1:8000";
 
 interface SearchResult
 {
@@ -20,6 +20,18 @@ interface SearchResult
     line: number;
     title: string;
 }
+
+interface FindnoteSettings
+{
+    serverUrl: string;
+    collections: string[];
+}
+
+const DEFAULT_SETTINGS: FindnoteSettings =
+{
+    serverUrl: "http://127.0.0.1:8000",
+    collections: [],
+};
 
 class FindnoteSearchModal extends SuggestModal<SearchResult>
 {
@@ -232,7 +244,15 @@ class FindnoteSearchView extends ItemView
 
                     if (results.length === 0)
                     {
-                        this.showNoResultsState(statusEl);
+                        if (this.plugin.settings.collections.length === 0)
+                        {
+                            this.showNoCollectionsState(statusEl);
+                        }
+                        else
+                        {
+                            this.showNoResultsState(statusEl);
+                        }
+
                         return;
                     }
 
@@ -373,6 +393,20 @@ class FindnoteSearchView extends ItemView
         });
     }
 
+    private showNoCollectionsState(statusEl: HTMLElement): void
+    {
+        statusEl.empty();
+
+        const messageEl = statusEl.createDiv(
+        {
+            text: "No collections selected",
+            cls: "findnote-empty",
+        });
+
+        messageEl.style.marginTop = "12px";
+        messageEl.style.fontSize = "0.9em";
+    }
+
     onClose(): Promise<void>
     {
         if (this.searchTimer !== null)
@@ -385,10 +419,98 @@ class FindnoteSearchView extends ItemView
     }
 }
 
+class FindnoteSettingTab extends PluginSettingTab
+{
+    plugin: FindnotePlugin;
+
+    constructor(app: App, plugin: FindnotePlugin)
+    {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+
+    async display(): Promise<void>
+    {
+        const { containerEl } = this;
+
+        containerEl.empty();
+
+        new Setting(containerEl)
+            .setName("Server URL")
+            .setDesc("The URL of the Findnote server.")
+            .addText((text) =>
+            {
+                text
+                    .setPlaceholder("http://127.0.0.1:8000")
+                    .setValue(this.plugin.settings.serverUrl)
+                    .onChange(async (value) =>
+                    {
+                        this.plugin.settings.serverUrl = value.trim();
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName("Collections")
+            .setDesc("Select which collections to search.");
+
+        try
+        {
+            const collections = await this.plugin.getCollections();
+
+            for (const collection of collections)
+            {
+                new Setting(containerEl)
+                    .setName(collection)
+                    .addToggle((toggle) =>
+                    {
+                        toggle
+                            .setValue(
+                                this.plugin.settings.collections.indexOf(collection) !== -1
+                            )
+                            .onChange(async (value) =>
+                            {
+                                if (value)
+                                {
+                                    if (this.plugin.settings.collections.lastIndexOf(collection) === -1)
+                                    {
+                                        this.plugin.settings.collections.push(collection);
+                                    }
+                                }
+                                else
+                                {
+                                    this.plugin.settings.collections =
+                                        this.plugin.settings.collections.filter(
+                                            (name) => name !== collection
+                                        );
+                                }
+
+                                await this.plugin.saveSettings();
+                            });
+                    });
+            }
+        }
+        catch (error)
+        {
+            new Setting(containerEl)
+                .setName("Unable to load collections")
+                .setDesc("Check the server URL and make sure the Findnote server is running.");
+        }
+    }
+}
+
 export default class FindnotePlugin extends Plugin
 {
+    settings: FindnoteSettings;
+
     async onload()
     {
+        await this.loadSettings();
+
+        this.addSettingTab(
+            new FindnoteSettingTab(this.app, this)
+        );
+        
         console.log("Findnote plugin loaded");
 
         this.registerView(
@@ -506,6 +628,11 @@ export default class FindnotePlugin extends Plugin
 
     async searchNotes(query: string): Promise<SearchResult[]>
     {
+        if (this.settings.collections.length === 0)
+        {
+            return [];
+        }
+
         try
         {
             const search = this.parseQuery(query);
@@ -526,6 +653,11 @@ export default class FindnotePlugin extends Plugin
                 params.append("not", word);
             }
 
+            for (const collection of this.settings.collections)
+            {
+                params.append("collection", collection);
+            }
+
             if (search.regex)
             {
                 params.append("re", search.regex);
@@ -533,7 +665,7 @@ export default class FindnotePlugin extends Plugin
 
             const response = await requestUrl(
             {
-                url: `${FINDNOTE_SERVER}/search?${params.toString()}`,
+                url: `${this.settings.serverUrl}/search?${params.toString()}`,
                 method: "GET",
             });
 
@@ -546,6 +678,19 @@ export default class FindnotePlugin extends Plugin
             new Notice("Findnote server connection failed");
             throw error;
         }
+    }
+
+    async getCollections(): Promise<string[]>
+    {
+        const response = await requestUrl(
+        {
+            url: `${this.settings.serverUrl}/collections`,
+            method: "GET",
+        });
+
+        const collections: { name: string }[] = response.json;
+
+        return collections.map((collection) => collection.name);
     }
 
     async openResult(result: SearchResult): Promise<void>
@@ -592,6 +737,20 @@ export default class FindnotePlugin extends Plugin
         }
 
         return words.slice(0, maxWords).join(" ") + "…";
+    }
+
+    async loadSettings(): Promise<void>
+    {
+        this.settings = Object.assign(
+            {},
+            DEFAULT_SETTINGS,
+            await this.loadData()
+        );
+    }
+
+    async saveSettings(): Promise<void>
+    {
+        await this.saveData(this.settings);
     }
 
     onunload()
