@@ -435,6 +435,18 @@ class FindnoteSettingTab extends PluginSettingTab
 
         containerEl.empty();
 
+        const backButton = containerEl.createEl("button",
+        {
+            text: "← Back",
+        });
+
+        backButton.style.marginBottom = "18px";
+
+        backButton.addEventListener("click", () =>
+        {
+            (this.app as any).setting.openTabById("community-plugins");
+        });
+
         new Setting(containerEl)
             .setName("Server URL")
             .setDesc("The URL of the Findnote server.")
@@ -450,13 +462,48 @@ class FindnoteSettingTab extends PluginSettingTab
                     });
             });
 
-        new Setting(containerEl)
-            .setName("Collections")
-            .setDesc("Select which collections to search.");
+        containerEl.createEl("h3",
+        {
+            text: "Collections",
+        });
+
+        const collectionsDescription = containerEl.createEl("p",
+        {
+            text: "Select which collections to search.",
+        });
+
+        collectionsDescription.style.marginLeft = "18px";
 
         try
         {
             const collections = await this.plugin.getCollections();
+
+            for (const collection of this.plugin.settings.collections)
+            {
+                if (collections.indexOf(collection) === -1)
+                {
+                    new Setting(containerEl)
+                        .setName(collection)
+                        .setDesc("Currently unavailable")
+                        .addToggle((toggle) =>
+                        {
+                            toggle
+                                .setValue(true)
+                                .onChange(async (value) =>
+                                {
+                                    if (!value)
+                                    {
+                                        this.plugin.settings.collections =
+                                            this.plugin.settings.collections.filter(
+                                                (name) => name !== collection
+                                            );
+
+                                        await this.plugin.saveSettings();
+                                    }
+                                });
+                        });
+                }
+            }
 
             for (const collection of collections)
             {
@@ -502,6 +549,7 @@ class FindnoteSettingTab extends PluginSettingTab
 export default class FindnotePlugin extends Plugin
 {
     settings: FindnoteSettings;
+    availableCollections: string[] = [];
 
     async onload()
     {
@@ -655,7 +703,10 @@ export default class FindnotePlugin extends Plugin
 
             for (const collection of this.settings.collections)
             {
-                params.append("collection", collection);
+                if (this.availableCollections.indexOf(collection) !== -1)
+                {
+                    params.append("collection", collection);
+                }
             }
 
             if (search.regex)
@@ -690,7 +741,10 @@ export default class FindnotePlugin extends Plugin
 
         const collections: { name: string }[] = response.json;
 
-        return collections.map((collection) => collection.name);
+        this.availableCollections =
+            collections.map((collection) => collection.name);
+
+        return this.availableCollections;
     }
 
     async openResult(result: SearchResult): Promise<void>
