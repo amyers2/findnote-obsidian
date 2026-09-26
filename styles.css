@@ -9,6 +9,11 @@
     background-color: var(--background-modifier-hover);
 }
 
+.findnote-result:focus {
+    background-color: var(--background-modifier-hover);
+    outline: none;
+}
+
 .findnote-result-title {
     font-size: 0.9em;
 }

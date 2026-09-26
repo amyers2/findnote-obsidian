@@ -246,6 +246,8 @@ class FindnoteSearchView extends ItemView
                             cls: "findnote-result",
                         });
 
+                        resultEl.setAttribute("tabindex", "0");
+
                         resultEl.createDiv(
                         {
                             text: this.plugin.truncateTitle(result.title),
@@ -261,6 +263,58 @@ class FindnoteSearchView extends ItemView
                         resultEl.addEventListener("click", () =>
                         {
                             void this.plugin.openResult(result);
+                        });
+
+                        resultEl.addEventListener("keydown", (event) =>
+                        {
+                            if (event.key === "Enter")
+                            {
+                                event.preventDefault();
+                                void this.plugin.openResult(result);
+                                return;
+                            }
+
+                            if (event.key !== "ArrowDown" && event.key !== "ArrowUp")
+                            {
+                                return;
+                            }
+
+                            event.preventDefault();
+
+                            const resultEls =
+                                Array.from(
+                                    resultsEl.querySelectorAll<HTMLElement>(".findnote-result")
+                                );
+
+                            const currentIndex = resultEls.indexOf(resultEl);
+
+                            if (currentIndex === -1)
+                            {
+                                return;
+                            }
+
+                            if (event.key === "ArrowUp")
+                            {
+                                if (currentIndex === 0)
+                                {
+                                    input.focus();
+                                }
+                                else
+                                {
+                                    resultEls[currentIndex - 1].focus();
+                                }
+
+                                return;
+                            }
+
+                            if (currentIndex === resultEls.length - 1)
+                            {
+                                input.focus();
+                            }
+                            else
+                            {
+                                resultEls[currentIndex + 1].focus();
+                            }
                         });
                     }
                 }
@@ -280,6 +334,35 @@ class FindnoteSearchView extends ItemView
                     });
                 }
             }, 250);
+        });
+
+        input.addEventListener("keydown", (event) =>
+        {
+            if (event.key !== "ArrowDown" && event.key !== "ArrowUp")
+            {
+                return;
+            }
+
+            const resultEls =
+                Array.from(
+                    resultsEl.querySelectorAll<HTMLElement>(".findnote-result")
+                );
+
+            if (resultEls.length === 0)
+            {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (event.key === "ArrowDown")
+            {
+                resultEls[0].focus();
+            }
+            else
+            {
+                resultEls[resultEls.length - 1].focus();
+            }
         });
 
         clearButton.addEventListener("click", () =>
