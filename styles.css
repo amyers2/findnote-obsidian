@@ -24,3 +24,83 @@
     color: var(--text-muted);
     font-size: 0.75em;
 }
+
+.findnote-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+}
+
+.findnote-option span:first-child {
+    font-size: 0.9em;
+}
+
+.findnote-toggle {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 18px;
+}
+
+.findnote-toggle-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.findnote-toggle-slider {
+    position: absolute;
+    inset: 0;
+    border-radius: 9px;
+    background: var(--background-modifier-border);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.findnote-toggle-slider::before {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    left: 2px;
+    top: 2px;
+    border-radius: 50%;
+    background: var(--background-primary);
+    transition: transform 0.15s ease;
+}
+
+.findnote-toggle-input:checked + .findnote-toggle-slider {
+    background: var(--interactive-accent);
+}
+
+.findnote-toggle-input:checked + .findnote-toggle-slider::before {
+    transform: translateX(14px);
+}
+
+.findnote-options {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+}
+
+.findnote-options summary {
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+.findnote-options .findnote-option:first-of-type {
+    margin-top: 4px;
+}
+
+.findnote-option-indicator {
+    margin-left: 5px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background-color: var(--background-modifier-hover);
+    color: var(--text-muted);
+    font-size: 0.8em;
+}

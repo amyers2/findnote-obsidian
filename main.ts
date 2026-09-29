@@ -178,6 +178,99 @@ class FindnoteSearchView extends ItemView
         input.style.width = "100%";
         input.style.paddingRight = "30px";
 
+        const optionsDetails = this.contentEl.createEl("details",
+        {
+            cls: "findnote-options",
+        });
+
+        const optionsSummary = optionsDetails.createEl("summary",
+        {
+            text: "Search options",
+        });
+
+        const matchCaseRow = optionsDetails.createDiv({
+            cls: "findnote-option",
+        });
+
+        matchCaseRow.createSpan({
+            text: "Match case",
+        });
+
+        const matchCaseToggle = matchCaseRow.createEl("input", {
+            type: "checkbox",
+        });
+
+        matchCaseToggle.addClass("findnote-toggle-input");
+
+        const matchCaseSwitch = matchCaseRow.createSpan({
+            cls: "findnote-toggle",
+        });
+
+        matchCaseSwitch.appendChild(matchCaseToggle);
+        matchCaseSwitch.createSpan({
+            cls: "findnote-toggle-slider",
+        });
+
+        matchCaseSwitch.addEventListener("click", () => {
+            matchCaseToggle.checked = !matchCaseToggle.checked;
+            updateOptionIndicators();
+            input.dispatchEvent(new Event("input"));
+        });
+
+        const wholeWordRow = optionsDetails.createDiv({
+            cls: "findnote-option",
+        });
+
+        wholeWordRow.createSpan({
+            text: "Whole word",
+        });
+
+        const wholeWordToggle = wholeWordRow.createEl("input", {
+            type: "checkbox",
+        });
+
+        wholeWordToggle.addClass("findnote-toggle-input");
+
+        const wholeWordSwitch = wholeWordRow.createSpan({
+            cls: "findnote-toggle",
+        });
+
+        wholeWordSwitch.appendChild(wholeWordToggle);
+        wholeWordSwitch.createSpan({
+            cls: "findnote-toggle-slider",
+        });
+
+        wholeWordSwitch.addEventListener("click", () => {
+            wholeWordToggle.checked = !wholeWordToggle.checked;
+            updateOptionIndicators();
+            input.dispatchEvent(new Event("input"));
+        });
+
+        const updateOptionIndicators = () =>
+        {
+            optionsSummary.empty();
+
+            optionsSummary.appendText("Search options");
+
+            if (matchCaseToggle.checked)
+            {
+                optionsSummary.createSpan(
+                {
+                    text: "Case",
+                    cls: "findnote-option-indicator",
+                });
+            }
+
+            if (wholeWordToggle.checked)
+            {
+                optionsSummary.createSpan(
+                {
+                    text: "Word",
+                    cls: "findnote-option-indicator",
+                });
+            }
+        };
+
         const clearButton = searchContainer.createEl("button",
         {
             text: "×",
@@ -235,7 +328,11 @@ class FindnoteSearchView extends ItemView
 
                 try
                 {
-                    const results = await this.plugin.searchNotes(input.value);
+                    const results = await this.plugin.searchNotes(
+                        input.value,
+                        matchCaseToggle.checked,
+                        wholeWordToggle.checked
+                    );
 
                     if (requestId !== this.searchRequestId)
                     {
@@ -674,7 +771,11 @@ export default class FindnotePlugin extends Plugin
         return result;
     }
 
-    async searchNotes(query: string): Promise<SearchResult[]>
+    async searchNotes(
+        query: string,
+        matchCase = false,
+        wholeWord = false
+    ): Promise<SearchResult[]>
     {
         if (this.settings.collections.length === 0)
         {
@@ -713,6 +814,9 @@ export default class FindnotePlugin extends Plugin
             {
                 params.append("re", search.regex);
             }
+
+            params.set("match_case", String(matchCase));
+            params.set("whole_word", String(wholeWord));
 
             const response = await requestUrl(
             {
